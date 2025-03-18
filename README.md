@@ -32,7 +32,7 @@ npm install -g @QuantumBuddha/n8n-mcp-server
 1. Clone the repository:
    ```bash
    cd ~/.nvm/versions/node/v20.17.0/lib/node_modules/
-   git clone https://github.com/illuminaresolutions/n8n-mcp-server.git
+   git clone https://github.com/QuantumBuddha/n8n-mcp-server.git
    cd n8n-mcp-server
    ```
 
