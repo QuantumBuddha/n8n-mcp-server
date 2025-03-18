@@ -18,13 +18,14 @@ An MCP server that provides access to n8n workflows, executions, credentials, an
 #### Option 1: Install from npm (Recommended)
 
 ```bash
-npm install -g @illuminaresolutions/n8n-mcp-server
+npm install -g @QuantumBuddha/n8n-mcp-server
 ```
 
 #### Option 2: Install from Source
 
 1. Clone the repository:
    ```bash
+   cd ~/.nvm/versions/node/v20.17.0/lib/node_modules/
    git clone https://github.com/illuminaresolutions/n8n-mcp-server.git
    cd n8n-mcp-server
    ```
@@ -92,17 +93,19 @@ Note: When installing from npm, the server will be available as `n8n-mcp-server`
      }
    }
    ```
-7. Save the file
-8. Ensure the MCP toggle is enabled (green) and the status indicator is green
-9. Start using MCP commands in Cline
 
-### Sage
+### n8n Tool
 
-Coming soon! The n8n MCP server will be available through:
-- Smithery.ai marketplace
-- Import from Claude Desktop
-
-For now, please use Claude Desktop or Cline.
+1. Install the server (follow Installation steps above)
+2. n8n
+3. Add new credential
+4. Select Command Line (STDIO)
+5. Add the following fields:
+   Command: node
+   Arguments : <PATH TO index.js> "~/.nvm/versions/node/v20.17.0/lib/node_modules/@illuminaresolutions/n8n-mcp-server/build"
+   Env: N8N_HOST=<FULL HOST URL> "https://n8n.example.com" N8N_API_KEY=<N8N API KEY>
+6. It may be necessary to set the N8N_HOST, and N8N_API_KEY in a "Set" node and pass it into the agent, or hard code it into the system message for the agent.
+   ```
 
 ## Validation
 
