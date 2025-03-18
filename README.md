@@ -2,6 +2,11 @@
 
 An MCP server that provides access to n8n workflows, executions, credentials, and more through the Model Context Protocol. This allows Large Language Models (LLMs) to interact with n8n instances in a secure and standardized way.
 
+## Requirements:
+
+-node.js
+-Redis
+
 ## Installation
 
 ### Get your n8n API Key
@@ -32,9 +37,13 @@ npm install -g @QuantumBuddha/n8n-mcp-server
 
 2. Install dependencies and build:
    ```bash
+   npm install ioredis
+   npm install --save-dev @types/ioredis
    npm install
    npm run build
    ```
+   IF YOU ARE USING N8N, THAT SHOULD BE IT....READY TO GO.  No need to start the server, n8n will start it when calling the tool or node.
+
 
 3. Start the server in the background:
    ```bash
