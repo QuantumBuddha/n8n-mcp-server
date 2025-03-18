@@ -3,6 +3,11 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import fetch from 'node-fetch';
+import { Redis } from 'ioredis';
+import * as crypto from 'crypto';
+
+// Initialize Redis client
+const redis = new Redis();
 
 // Type definitions for n8n API responses
 interface N8nUser {
@@ -377,6 +382,22 @@ class N8nClient {
   }
 }
 
+// Helper function to get client from Redis
+async function getClient(clientId: string): Promise<N8nClient | null> {
+  const sessionData = await redis.get(`n8n:session:${clientId}`);
+  if (!sessionData) {
+    return null;
+  }
+  
+  try {
+    const { url, apiKey } = JSON.parse(sessionData);
+    return new N8nClient(url, apiKey);
+  } catch (error) {
+    console.error('Failed to parse session data:', error);
+    return null;
+  }
+}
+
 // Create an MCP server
 const server = new Server(
   {
@@ -389,9 +410,6 @@ const server = new Server(
     }
   }
 );
-
-// Store client instances
-const clients = new Map<string, N8nClient>();
 
 // List tools handler
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -863,9 +881,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // Test connection by listing workflows
         await client.listWorkflows();
         
-        // Generate a unique client ID
-        const clientId = Buffer.from(url).toString('base64');
-        clients.set(clientId, client);
+        // Generate a SHA-256 based client ID
+        const clientId = crypto.createHash('sha256').update(`${url}:${apiKey}:${Date.now()}`).digest('hex');
+        
+        // Store in Redis with 24-hour expiry
+        await redis.setex(`n8n:session:${clientId}`, 60 * 60 * 24, JSON.stringify({ url, apiKey }));
 
         return {
           content: [{
@@ -886,7 +906,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "list-workflows": {
       const { clientId } = args as { clientId: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -927,7 +947,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "get-workflow": {
       const { clientId, id } = args as { clientId: string; id: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -964,7 +984,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         workflow: Partial<N8nWorkflow>;
       };
 
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1002,7 +1022,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         connections?: Record<string, any>;
       };
 
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1034,7 +1054,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "delete-workflow": {
       const { clientId, id } = args as { clientId: string; id: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1066,7 +1086,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "activate-workflow": {
       const { clientId, id } = args as { clientId: string; id: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1098,7 +1118,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "deactivate-workflow": {
       const { clientId, id } = args as { clientId: string; id: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1130,7 +1150,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "list-projects": {
       const { clientId } = args as { clientId: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1162,7 +1182,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "create-project": {
       const { clientId, name } = args as { clientId: string; name: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1194,7 +1214,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "delete-project": {
       const { clientId, projectId } = args as { clientId: string; projectId: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1226,7 +1246,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "update-project": {
       const { clientId, projectId, name } = args as { clientId: string; projectId: string; name: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1258,7 +1278,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "list-users": {
       const { clientId } = args as { clientId: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1296,7 +1316,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           role?: 'global:admin' | 'global:member'
         }> 
       };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1328,7 +1348,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "get-user": {
       const { clientId, idOrEmail } = args as { clientId: string; idOrEmail: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1360,7 +1380,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "delete-user": {
       const { clientId, idOrEmail } = args as { clientId: string; idOrEmail: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1392,7 +1412,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "list-variables": {
       const { clientId } = args as { clientId: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1424,7 +1444,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "create-variable": {
       const { clientId, key, value } = args as { clientId: string; key: string; value: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1456,7 +1476,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "delete-variable": {
       const { clientId, id } = args as { clientId: string; id: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1493,7 +1513,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         type: string;
         data: Record<string, any>;
       };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1525,7 +1545,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "delete-credential": {
       const { clientId, id } = args as { clientId: string; id: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1557,7 +1577,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "get-credential-schema": {
       const { clientId, credentialTypeName } = args as { clientId: string; credentialTypeName: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1596,7 +1616,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         workflowId?: string;
         limit?: number;
       };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1628,7 +1648,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "get-execution": {
       const { clientId, id, includeData } = args as { clientId: string; id: number; includeData?: boolean };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1660,7 +1680,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "delete-execution": {
       const { clientId, id } = args as { clientId: string; id: number };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1693,7 +1713,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // Tag Management Handlers
     case "create-tag": {
       const { clientId, name } = args as { clientId: string; name: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1725,7 +1745,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "list-tags": {
       const { clientId, limit } = args as { clientId: string; limit?: number };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1757,7 +1777,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "get-tag": {
       const { clientId, id } = args as { clientId: string; id: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1789,7 +1809,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "update-tag": {
       const { clientId, id, name } = args as { clientId: string; id: string; name: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1821,7 +1841,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "delete-tag": {
       const { clientId, id } = args as { clientId: string; id: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1853,7 +1873,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "get-workflow-tags": {
       const { clientId, workflowId } = args as { clientId: string; workflowId: string };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1889,7 +1909,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         workflowId: string;
         tagIds: { id: string }[];
       };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
@@ -1925,7 +1945,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         daysAbandonedWorkflow?: number;
         categories?: Array<'credentials' | 'database' | 'nodes' | 'filesystem' | 'instance'>;
       };
-      const client = clients.get(clientId);
+      const client = await getClient(clientId);
       if (!client) {
         return {
           content: [{
