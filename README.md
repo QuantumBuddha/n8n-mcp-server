@@ -5,6 +5,7 @@ An MCP server that provides access to n8n workflows, executions, credentials, an
 ## Requirements:
 
 -node.js
+
 -Redis
 
 ## Installation
