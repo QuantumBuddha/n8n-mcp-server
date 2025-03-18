@@ -177,11 +177,6 @@ These features require an n8n Enterprise license:
    - Enable n8n authentication
    - Keep n8n updated
 
-## Support
-
-- [GitHub Issues](https://github.com/illuminaresolutions/n8n-mcp-server/issues)
-- [n8n Documentation](https://docs.n8n.io)
-
 ## License
 
 [MIT License](LICENSE)
