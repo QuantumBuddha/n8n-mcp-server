@@ -113,7 +113,7 @@ Note: When installing from npm, the server will be available as `n8n-mcp-server`
 5. Add the following fields:
    Command: node
    Arguments : <PATH TO index.js> "~/.nvm/versions/node/v20.17.0/lib/node_modules/@illuminaresolutions/n8n-mcp-server/build"
-   Env: N8N_HOST=<FULL HOST URL> "https://n8n.example.com" N8N_API_KEY=<N8N API KEY>
+   Env: N8N_HOST=<FULL HOST URL> "https://n8n.example.com" N8N_API_KEY="EXAMPLE N8N API KEY"
 6. It may be necessary to set the N8N_HOST, and N8N_API_KEY in a "Set" node and pass it into the agent, or hard code it into the system message for the agent.
    ```
 
